@@ -31,18 +31,51 @@ jobs:
 
       - name: Install Gradle
         run: |
-          curl -L https://services.gradle.org/distributions/gradle-7.6.4-bin.zip -o /tmp/gradle.zip
+          curl -fL https://services.gradle.org/distributions/gradle-7.6.4-bin.zip -o /tmp/gradle.zip
           sudo unzip -q /tmp/gradle.zip -d /opt
           echo "/opt/gradle-7.6.4/bin" >> "$GITHUB_PATH"
 
-      - name: Enable AndroidX and build
-        working-directory: source/AI_Ready_Injector_Project/android
+      - name: Fix SDK and build APK
         shell: bash
         run: |
+          set -e
+          cd source/AI_Ready_Injector_Project/android
           echo "android.useAndroidX=true" >> gradle.properties
           echo "android.enableJetifier=true" >> gradle.properties
-          sed -i 's/minSdkVersion 21/minSdkVersion 23/' app/build.gradle
-          sed -i 's/minSdkVersion = 21/minSdkVersion = 23/' app/build.gradle
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path(".")
+          files = list(root.rglob("*.gradle")) + list(root.rglob("*.gradle.kts"))
+          changed = False
+
+          for p in files:
+              s = p.read_text()
+              new = re.sub(
+                  r'(\bminSdk(?:Version)?\s*=?\s*)21\b',
+                  r'\g<1>23',
+                  s
+              )
+              if new != s:
+                  p.write_text(new)
+                  print("Updated:", p)
+                  changed = True
+
+          for p in root.rglob("AndroidManifest.xml"):
+              s = p.read_text()
+              new = re.sub(r'(android:minSdkVersion\s*=\s*")21(")', r'\g<1>23\2', s)
+              if new != s:
+                  p.write_text(new)
+                  print("Updated:", p)
+                  changed = True
+
+          print("SDK setting scan:")
+          for p in files:
+              for line in p.read_text().splitlines():
+                  if "minSdk" in line:
+                      print(f"{p}: {line.strip()}")
+          PY
           gradle assembleDebug
 
       - name: Upload APK
