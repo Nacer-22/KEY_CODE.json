@@ -1,5 +1,5 @@
 
-name: Inspect Android Project
+name: Build Android APK
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 jobs:
-  inspect:
+  build:
     runs-on: ubuntu-22.04
 
     steps:
@@ -27,16 +27,25 @@ jobs:
           mkdir -p source
           unzip -oq "$ZIP" -d source
 
-      - name: Inspect Dart and Android files
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build Android APK
+        working-directory: source/AI_Ready_Injector_Project/android
         shell: bash
         run: |
-          echo "=== Dart files ==="
-          find source -type f -name '*.dart' \
-            ! -path '*/.dart_tool/*' | head -100
+          gradle --version
+          gradle assembleDebug
 
-          echo "=== Flutter configuration ==="
-          find source -type f -name pubspec.yaml
-
-          echo "=== Android source files ==="
-          find source/AI_Ready_Injector_Project/android/app/src/main \
-            -maxdepth 5 -type f | head -100
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AI-Ready-Injector-debug-APK
+          path: source/AI_Ready_Injector_Project/android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
