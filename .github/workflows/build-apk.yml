@@ -35,47 +35,16 @@ jobs:
           sudo unzip -q /tmp/gradle.zip -d /opt
           echo "/opt/gradle-7.6.4/bin" >> "$GITHUB_PATH"
 
-      - name: Fix SDK and build APK
+      - name: Set SDK and build APK
         shell: bash
         run: |
           set -e
           cd source/AI_Ready_Injector_Project/android
           echo "android.useAndroidX=true" >> gradle.properties
           echo "android.enableJetifier=true" >> gradle.properties
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-
-          root = Path(".")
-          files = list(root.rglob("*.gradle")) + list(root.rglob("*.gradle.kts"))
-          changed = False
-
-          for p in files:
-              s = p.read_text()
-              new = re.sub(
-                  r'(\bminSdk(?:Version)?\s*=?\s*)21\b',
-                  r'\g<1>23',
-                  s
-              )
-              if new != s:
-                  p.write_text(new)
-                  print("Updated:", p)
-                  changed = True
-
-          for p in root.rglob("AndroidManifest.xml"):
-              s = p.read_text()
-              new = re.sub(r'(android:minSdkVersion\s*=\s*")21(")', r'\g<1>23\2', s)
-              if new != s:
-                  p.write_text(new)
-                  print("Updated:", p)
-                  changed = True
-
-          print("SDK setting scan:")
-          for p in files:
-              for line in p.read_text().splitlines():
-                  if "minSdk" in line:
-                      print(f"{p}: {line.strip()}")
-          PY
+          sed -i -E 's/(minSdk|minSdkVersion)([[:space:]]*=?[[:space:]]*)[0-9]+/\124/g' app/build.gradle
+          sed -i -E 's/(android:minSdkVersion=")[0-9]+/\124/g' app/src/main/AndroidManifest.xml
+          grep -nE 'minSdk|minSdkVersion' app/build.gradle app/src/main/AndroidManifest.xml || true
           gradle assembleDebug
 
       - name: Upload APK
