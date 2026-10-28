@@ -9,30 +9,60 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v5
 
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Build debug APK
+      - name: Extract and build project
+        shell: bash
         run: |
-          if [ ! -f ./gradlew ]; then
-            echo "ERROR: gradlew is missing from repository root"
+          set -e
+
+          ZIP="AI_Ready_Injector_Source.zip"
+
+          if [ ! -f "$ZIP" ]; then
+            echo "ERROR: Project ZIP not found"
+            ls -la
             exit 1
           fi
-          chmod +x ./gradlew
+
+          sudo apt-get update
+          sudo apt-get install -y unzip
+
+          mkdir -p source
+          unzip -q "$ZIP" -d source
+
+          WRAPPER="$(find source -type f -name gradlew -print -quit)"
+
+          if [ -z "$WRAPPER" ]; then
+            echo "ERROR: No gradlew found inside the ZIP."
+            echo "Project files found:"
+            find source -maxdepth 4 -type f | head -80
+            exit 1
+          fi
+
+          ROOT="$(dirname "$WRAPPER")"
+          cd "$ROOT"
+
+          if [ ! -f settings.gradle ] && [ ! -f settings.gradle.kts ]; then
+            echo "ERROR: Gradle settings file not found."
+            exit 1
+          fi
+
+          chmod +x gradlew
           ./gradlew :app:assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: AI-Ready-Injector-debug-APK
-          path: app/build/outputs/apk/debug/*.apk
+          path: source/**/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
-          
