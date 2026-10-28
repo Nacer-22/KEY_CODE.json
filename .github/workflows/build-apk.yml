@@ -12,8 +12,7 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Extract project
         run: |
@@ -24,11 +23,26 @@ jobs:
           mkdir -p source
           unzip -oq "$ZIP" -d source
 
-      - name: Inspect project
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Build APK
+        working-directory: source/AI_Ready_Injector_Project
         run: |
-          echo "=== Android files ==="
-          find source/AI_Ready_Injector_Project/android/app/src/main -maxdepth 5 -type f | sort | head -100
-          echo "=== Flutter files ==="
-          find source/AI_Ready_Injector_Project -type f -name '*.dart' | head -100
-          echo "=== Project configuration ==="
-          cat source/AI_Ready_Injector_Project/pubspec.yaml
+          flutter pub get
+          flutter build apk --debug --target-platform android-arm64
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AI-Ready-Injector-debug-APK
+          path: source/AI_Ready_Injector_Project/build/app/outputs/flutter-apk/*.apk
+          if-no-files-found: error
