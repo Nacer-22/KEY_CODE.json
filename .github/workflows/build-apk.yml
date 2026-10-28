@@ -1,44 +1,18 @@
 
-name: Build Android APK
-
-on:
-  workflow_dispatch:
-
-permissions:
-  contents: read
-
-jobs:
-  build:
-    runs-on: ubuntu-22.04
-
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
-
-      - name: Extract project
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y unzip
-          ZIP="$(find . -maxdepth 1 -type f -iname '*.zip' -print -quit)"
-          test -n "$ZIP"
-          mkdir -p source
-          unzip -oq "$ZIP" -d source
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
-      - name: Build APK
+      - name: Inspect project files
         working-directory: source/AI_Ready_Injector_Project
+        shell: bash
         run: |
-          flutter pub get
-          flutter build apk --debug
+          echo "=== Project files ==="
+          find . -maxdepth 5 -type f \
+            ! -path './.git/*' \
+            ! -path './.dart_tool/*' \
+            | sort | head -200
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: AI-Ready-Injector-debug-APK
-          path: source/AI_Ready_Injector_Project/build/app/outputs/flutter-apk/*.apk
-          if-no-files-found: error
+          echo "=== Dart entry points ==="
+          find . -type f -name '*.dart' \
+            ! -path './.dart_tool/*' \
+            | head -100
+
+          echo "=== pubspec.yaml ==="
+          cat pubspec.yaml
