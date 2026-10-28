@@ -1,5 +1,5 @@
 
-name: Build Android APK
+name: Inspect Android Project
 
 on:
   workflow_dispatch:
@@ -8,41 +8,35 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  inspect:
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout source
+        uses: actions/checkout@v4
 
-      - name: Extract project
+      - name: Extract project ZIP
         run: |
           sudo apt-get update
           sudo apt-get install -y unzip
           ZIP="$(find . -maxdepth 1 -type f -iname '*.zip' -print -quit)"
-          test -n "$ZIP"
+          if [ -z "$ZIP" ]; then
+            echo "ERROR: ZIP file not found"
+            exit 1
+          fi
           mkdir -p source
           unzip -oq "$ZIP" -d source
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-
-      - name: Build APK
-        working-directory: source/AI_Ready_Injector_Project
+      - name: Inspect Dart and Android files
+        shell: bash
         run: |
-          flutter pub get
-          flutter build apk --debug --target-platform android-arm64
+          echo "=== Dart files ==="
+          find source -type f -name '*.dart' \
+            ! -path '*/.dart_tool/*' | head -100
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: AI-Ready-Injector-debug-APK
-          path: source/AI_Ready_Injector_Project/build/app/outputs/flutter-apk/*.apk
-          if-no-files-found: error
+          echo "=== Flutter configuration ==="
+          find source -type f -name pubspec.yaml
+
+          echo "=== Android source files ==="
+          find source/AI_Ready_Injector_Project/android/app/src/main \
+            -maxdepth 5 -type f | head -100
