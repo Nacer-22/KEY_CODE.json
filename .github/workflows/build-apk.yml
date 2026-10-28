@@ -41,6 +41,8 @@ jobs:
         run: |
           echo "android.useAndroidX=true" >> gradle.properties
           echo "android.enableJetifier=true" >> gradle.properties
+          sed -i 's/minSdkVersion 21/minSdkVersion 23/' app/build.gradle
+          sed -i 's/minSdkVersion = 21/minSdkVersion = 23/' app/build.gradle
           gradle assembleDebug
 
       - name: Upload APK
